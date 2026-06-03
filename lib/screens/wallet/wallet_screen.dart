@@ -9,6 +9,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../models/transaction_model.dart';
 import '../../models/draw_model.dart';  // for PaymentMethod
 import '../../providers/all_providers.dart';
+import '../../providers/wallet_provider.dart';
 import '../../services/api_service.dart';
 import '../../models/result_models.dart';
 import '../../widgets/shared_widgets.dart';
@@ -18,8 +19,8 @@ class WalletScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final balAsync  = ref.watch(walletBalanceProvider);
-    final txnAsync  = ref.watch(transactionsProvider);
+    final balance   = ref.watch(walletNotifierProvider);
+    final txnAsync  = ref.watch(transactionsNotifierProvider);
 
     return Scaffold(
       backgroundColor: kBg,
@@ -33,8 +34,7 @@ class WalletScreen extends ConsumerWidget {
         color: kGold,
         backgroundColor: kCard,
         onRefresh: () async {
-          ref.invalidate(walletBalanceProvider);
-          ref.invalidate(transactionsProvider);
+          // wallet state is live — no need to invalidate
         },
         child: CustomScrollView(
           slivers: [
@@ -42,19 +42,11 @@ class WalletScreen extends ConsumerWidget {
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.all(16),
-                child: balAsync.when(
-                  data: (bal) => _BalanceCard(
-                    balance: bal,
-                    onDeposit: () => _showDepositSheet(context, ref),
-                    onWithdraw: () => _showWithdrawSheet(context, ref, bal),
-                  ).animate().fadeIn(),
-                  loading: () => const _BalanceCardSkeleton(),
-                  error: (_, __) => _BalanceCard(
-                    balance: 0,
-                    onDeposit: () => _showDepositSheet(context, ref),
-                    onWithdraw: () {},
-                  ),
-                ),
+                child: _BalanceCard(
+                  balance: balance,
+                  onDeposit: () => _showDepositSheet(context, ref),
+                  onWithdraw: () => _showWithdrawSheet(context, ref, balance),
+                ).animate().fadeIn(),
               ),
             ),
 
@@ -84,7 +76,7 @@ class WalletScreen extends ConsumerWidget {
             ),
 
             // Transactions list
-            txnAsync.when(
+            AsyncData(txnAsync).when(
               data: (txns) {
                 if (txns.isEmpty) {
                   return const SliverFillRemaining(

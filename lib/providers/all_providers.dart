@@ -1,9 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../services/api_service.dart';
+import '../services/mock_data.dart';
 import '../models/draw_model.dart';
 import '../models/transaction_model.dart';
 import '../models/result_models.dart';
+import 'wallet_provider.dart';
 
 final authServiceProvider = Provider<ApiService>((ref) => ApiService());
 
@@ -14,35 +16,58 @@ final authStateProvider = FutureProvider<Map<String, dynamic>?>((ref) async {
   return {'token': token};
 });
 
-// Use NotifierProvider instead of StateProvider for riverpod 3.x compatibility
-class _NullableMapNotifier extends Notifier<Map<String, dynamic>?> {
+class _MapNotifier extends Notifier<Map<String, dynamic>?> {
   @override
-  Map<String, dynamic>? build() => null;
+  Map<String, dynamic>? build() => MockData.currentUser;
   void set(Map<String, dynamic>? val) => state = val;
 }
-final currentUserProvider = NotifierProvider<_NullableMapNotifier, Map<String, dynamic>?>(
-  _NullableMapNotifier.new);
+final currentUserProvider = NotifierProvider<_MapNotifier, Map<String, dynamic>?>(
+  _MapNotifier.new);
 
-class _NullableStringNotifier extends Notifier<String?> {
+class _StringNotifier extends Notifier<String?> {
   @override
   String? build() => null;
   void set(String? val) => state = val;
 }
-final selectedCategoryProvider = NotifierProvider<_NullableStringNotifier, String?>(
-  _NullableStringNotifier.new);
+final selectedCategoryProvider = NotifierProvider<_StringNotifier, String?>(
+  _StringNotifier.new);
 
+// Draws — tries API first, falls back to mock data
 final drawsProvider = FutureProvider.family<List<DrawModel>, String?>((ref, category) async {
-  return ref.read(authServiceProvider).getDraws(category: category);
+  try {
+    return await ref.read(authServiceProvider).getDraws(category: category);
+  } catch (_) {
+    final all = MockData.draws;
+    if (category == null) return all;
+    return all.where((d) => d.category == category).toList();
+  }
 });
 
 final drawDetailProvider = FutureProvider.family<DrawModel, int>((ref, drawId) async {
-  return ref.read(authServiceProvider).getDrawDetail(drawId);
+  try {
+    return await ref.read(authServiceProvider).getDrawDetail(drawId);
+  } catch (_) {
+    return MockData.draws.firstWhere((d) => d.id == drawId,
+      orElse: () => MockData.draws.first);
+  }
 });
 
+// Wallet — real state (re-exported from wallet_provider.dart)
+// walletNotifierProvider and transactionsNotifierProvider are in wallet_provider.dart
+// Keep these for backward compatibility
 final walletBalanceProvider = FutureProvider<double>((ref) async {
-  return ref.read(authServiceProvider).getWalletBalance();
+  return ref.watch(walletNotifierProvider);
 });
 
 final transactionsProvider = FutureProvider<List<Transaction>>((ref) async {
-  return ref.read(authServiceProvider).getTransactions();
+  return ref.watch(transactionsNotifierProvider);
+});
+
+// Referral stats — mock
+final referralStatsProvider = FutureProvider<ReferralStats>((ref) async {
+  try {
+    return await ref.read(authServiceProvider).getReferralStats();
+  } catch (_) {
+    return MockData.referralStats;
+  }
 });

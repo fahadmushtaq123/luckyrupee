@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../providers/all_providers.dart';
+import '../../providers/wallet_provider.dart';
 import '../../widgets/shared_widgets.dart';
 import '../draw/draw_detail_screen.dart';
 import '../wallet/wallet_screen.dart';
@@ -146,16 +147,12 @@ class _DrawsFeed extends ConsumerWidget {
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
             child: Consumer(builder: (_, ref, __) {
-              final balAsync = ref.watch(walletBalanceProvider);
-              return balAsync.when(
-                data: (bal) => WalletTile(
-                  balance: bal,
-                  onDeposit: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const WalletScreen())),
-                ).animate().fadeIn(duration: 400.ms),
-                loading: () => const SizedBox(height: 70),
-                error: (_, __) => const SizedBox.shrink(),
-              );
+              final bal = ref.watch(walletNotifierProvider);
+              return WalletTile(
+                balance: bal,
+                onDeposit: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const WalletScreen())),
+              ).animate().fadeIn(duration: 400.ms);
             }),
           ),
         ),
