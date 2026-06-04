@@ -1,0 +1,12 @@
+{
+  "name": "luckyrupee-api",
+  "version": "1.0.0",
+  "description": "LuckyRupee Backend API",
+  "main": "backend/server_fixed.js",
+  "scripts": {
+    "start": "node backend/server_fixed.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
