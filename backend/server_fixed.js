@@ -31,16 +31,27 @@ app.use('/api/', limiter);
 app.use('/api/auth/', authLimiter);
 
 // ── Database ──────────────────────────────────────────────
-const pool = new Pool({
-  host:     process.env.DB_HOST || 'localhost',
-  database: process.env.DB_NAME || 'luckyrupee',
-  user:     process.env.DB_USER || 'postgres',
-  password: process.env.DB_PASS,
-  port:     5432,
-  ssl:      process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
-  max:      20,
-  idleTimeoutMillis: 30000,
-});
+const pool = new Pool(
+  process.env.DATABASE_URL
+    ? {
+        connectionString: process.env.DATABASE_URL,
+        ssl: { rejectUnauthorized: false },
+        max: 20,
+        idleTimeoutMillis: 30000,
+      }
+    : {
+        host:     process.env.DB_HOST || 'localhost',
+        database: process.env.DB_NAME || 'luckyrupee',
+        user:     process.env.DB_USER || 'postgres',
+        password: process.env.DB_PASS,
+        port:     5432,
+        ssl:      false,
+        max:      20,
+        idleTimeoutMillis: 30000,
+      }
+);
+
+
 
 // ── Global error handler helper ───────────────────────────
 const asyncRoute = (fn) => (req, res, next) =>
@@ -718,6 +729,78 @@ app.use((err, req, res, _next) => {
 
 // ── Start ──────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
+
+// Auto-create tables on startup
+async function initDB() {
+  const tables = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id SERIAL PRIMARY KEY, phone VARCHAR(15) UNIQUE NOT NULL,
+      name VARCHAR(100), city VARCHAR(60),
+      wallet_balance DECIMAL(10,2) NOT NULL DEFAULT 0,
+      referral_code VARCHAR(20) UNIQUE NOT NULL,
+      referred_by INT, device_id VARCHAR(100),
+      role VARCHAR(20) DEFAULT 'user', is_verified BOOLEAN DEFAULT FALSE,
+      fraud_score DECIMAL(3,2) DEFAULT 0,
+      created_at TIMESTAMP DEFAULT NOW(), last_login TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS otp_codes (
+      phone VARCHAR(15) PRIMARY KEY, code VARCHAR(100) NOT NULL,
+      expires_at TIMESTAMP NOT NULL, attempts INT DEFAULT 0
+    )`,
+    `CREATE TABLE IF NOT EXISTS draws (
+      id SERIAL PRIMARY KEY, prize_name VARCHAR(100) NOT NULL,
+      prize_description TEXT, prize_image_url TEXT,
+      prize_value DECIMAL(10,2) NOT NULL,
+      prize_type VARCHAR(20) DEFAULT 'physical',
+      entry_price DECIMAL(6,2) NOT NULL DEFAULT 1,
+      max_entries INT NOT NULL, max_per_user INT DEFAULT 50,
+      category VARCHAR(30), status VARCHAR(20) DEFAULT 'active',
+      is_featured BOOLEAN DEFAULT FALSE, end_time TIMESTAMP NOT NULL,
+      winner_id INT, seed_hash VARCHAR(64), winning_seed VARCHAR(64),
+      completed_at TIMESTAMP, created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS entries (
+      id SERIAL PRIMARY KEY, draw_id INT NOT NULL,
+      user_id INT NOT NULL, entry_number INT NOT NULL,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS transactions (
+      id SERIAL PRIMARY KEY, user_id INT NOT NULL,
+      type VARCHAR(30) NOT NULL, amount DECIMAL(10,2) NOT NULL,
+      reference VARCHAR(100), status VARCHAR(20) DEFAULT 'completed',
+      description TEXT, metadata JSONB,
+      created_at TIMESTAMP DEFAULT NOW()
+    )`,
+    `CREATE TABLE IF NOT EXISTS skill_questions (
+      id SERIAL PRIMARY KEY, question TEXT NOT NULL,
+      option_a VARCHAR(100), option_b VARCHAR(100),
+      option_c VARCHAR(100), option_d VARCHAR(100),
+      correct_answer VARCHAR(1) NOT NULL,
+      difficulty VARCHAR(10) DEFAULT 'easy',
+      category VARCHAR(30) DEFAULT 'math',
+      is_active BOOLEAN DEFAULT TRUE
+    )`
+  ];
+  try {
+    for (const sql of tables) await pool.query(sql);
+    const existing = await pool.query('SELECT COUNT(*) FROM skill_questions');
+    if (parseInt(existing.rows[0].count) === 0) {
+      await pool.query(`
+        INSERT INTO skill_questions (question,option_a,option_b,option_c,option_d,correct_answer) VALUES
+        ('What is 15 x 8?','100','120','110','130','b'),
+        ('Capital of Pakistan?','Lahore','Karachi','Islamabad','Peshawar','c'),
+        ('What is 50% of 200?','50','75','100','125','c'),
+        ('How many months in a year?','10','11','12','13','c'),
+        ('What is 9 x 9?','72','81','91','80','b')
+      `);
+    }
+    console.log('✅ Database ready');
+  } catch (err) {
+    console.error('DB init error:', err.message);
+  }
+}
+initDB();
+
 // Only start listening when run directly (not when required by tests)
 if (require.main === module) {
   app.listen(PORT, () => console.log(`🚀 LuckyRupee API running on port ${PORT}`));
