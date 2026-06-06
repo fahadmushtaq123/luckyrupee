@@ -801,6 +801,75 @@ async function initDB() {
 }
 initDB();
 
+
+// ── Admin Stats ───────────────────────────────────────────
+app.get('/api/admin/stats', authenticate, adminOnly, asyncRoute(async (req, res) => {
+  const [users, draws, revenue, winners] = await Promise.all([
+    pool.query('SELECT COUNT(*) FROM users'),
+    pool.query("SELECT COUNT(*) FROM draws WHERE status='active'"),
+    pool.query("SELECT COALESCE(SUM(amount),0) as total FROM transactions WHERE type='entry_fee'"),
+    pool.query("SELECT COUNT(*) FROM draws WHERE status='completed'"),
+  ]);
+  const walletQ = await pool.query('SELECT COALESCE(SUM(wallet_balance),0) as total FROM users');
+  const verifiedQ = await pool.query('SELECT COUNT(*) FROM users WHERE is_verified=true');
+  res.json({
+    totalUsers: parseInt(users.rows[0].count),
+    activeDraws: parseInt(draws.rows[0].count),
+    totalRevenue: parseFloat(revenue.rows[0].total),
+    totalWinners: parseInt(winners.rows[0].count),
+    totalWalletBalance: parseFloat(walletQ.rows[0].total),
+    verifiedUsers: parseInt(verifiedQ.rows[0].count),
+  });
+}));
+
+// ── Admin Transactions ────────────────────────────────────
+app.get('/api/admin/transactions', authenticate, adminOnly, asyncRoute(async (req, res) => {
+  const limit = parseInt(req.query.limit) || 50;
+  const type = req.query.type;
+  let q = 'SELECT t.*, u.phone FROM transactions t LEFT JOIN users u ON t.user_id=u.id';
+  const params = [];
+  if (type) { q += ' WHERE t.type=$1'; params.push(type); }
+  q += ' ORDER BY t.created_at DESC LIMIT $' + (params.length + 1);
+  params.push(limit);
+  const result = await pool.query(q, params);
+  res.json({ transactions: result.rows });
+}));
+
+// ── Admin Edit/Delete Draw ────────────────────────────────
+app.put('/api/admin/draws/:id', authenticate, adminOnly, asyncRoute(async (req, res) => {
+  const { prizeName, prizeDescription, prizeImageUrl, prizeValue, entryPrice, maxEntries, maxPerUser, category, prizeType, isFeatured, endTime } = req.body;
+  const result = await pool.query(
+    'UPDATE draws SET prize_name=$1, prize_description=$2, prize_image_url=$3, prize_value=$4, entry_price=$5, max_entries=$6, max_per_user=$7, category=$8, prize_type=$9, is_featured=$10, end_time=$11 WHERE id=$12 RETURNING *',
+    [prizeName, prizeDescription, prizeImageUrl, prizeValue, entryPrice, maxEntries, maxPerUser, category, prizeType, isFeatured, endTime, req.params.id]
+  );
+  res.json(result.rows[0]);
+}));
+
+app.delete('/api/admin/draws/:id', authenticate, adminOnly, asyncRoute(async (req, res) => {
+  await pool.query('UPDATE draws SET status=$1 WHERE id=$2', ['cancelled', req.params.id]);
+  res.json({ success: true });
+}));
+
+// ── Admin Trigger Draw ────────────────────────────────────
+app.post('/api/admin/draws/:id/trigger', authenticate, adminOnly, asyncRoute(async (req, res) => {
+  const drawId = req.params.id;
+  const drawQ = await pool.query('SELECT * FROM draws WHERE id=$1 AND status=$2', [drawId, 'active']);
+  if (!drawQ.rows.length) return res.status(404).json({ error: 'Draw not found or not active' });
+  const draw = drawQ.rows[0];
+  const entries = await pool.query('SELECT e.*, u.phone FROM entries e JOIN users u ON e.user_id=u.id WHERE e.draw_id=$1', [drawId]);
+  if (!entries.rows.length) return res.status(400).json({ error: 'No entries yet' });
+  const seed = crypto.randomBytes(32).toString('hex');
+  const hash = crypto.createHash('sha256').update(seed + drawId).digest('hex');
+  const idx = parseInt(hash.slice(0, 8), 16) % entries.rows.length;
+  const winner = entries.rows[idx];
+  await pool.query('UPDATE draws SET status=$1, winner_id=$2, winner_entry_id=$3, winning_seed=$4, completed_at=NOW() WHERE id=$5',
+    ['completed', winner.user_id, winner.id, seed, drawId]);
+  await pool.query('INSERT INTO transactions (user_id, type, amount, description, status) VALUES ($1,$2,$3,$4,$5)',
+    [winner.user_id, 'prize_payout', draw.prize_value, 'Won: ' + draw.prize_name, 'completed']);
+  await pool.query('UPDATE users SET wallet_balance=wallet_balance+$1 WHERE id=$2', [draw.prize_value, winner.user_id]);
+  res.json({ success: true, winner: { phone: winner.phone, entry_number: winner.entry_number, user_id: winner.user_id } });
+}));
+
 // Only start listening when run directly (not when required by tests)
 if (require.main === module) {
   app.listen(PORT, () => console.log(`🚀 LuckyRupee API running on port ${PORT}`));

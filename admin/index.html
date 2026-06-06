@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LuckyRupee Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#080C14;--surface:#0F1623;--card:#141E2E;--border:#1E2D42;--gold:#F5C842;--gold-dim:#C9A227;--green:#22C55E;--red:#EF4444;--blue:#3B82F6;--muted:#6B7FA3;--text:#E8EDF5;--text-dim:#A0AFCC}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:'Space Grotesk',sans-serif;min-height:100vh;display:flex}
+.sidebar{width:240px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:20px 0;position:fixed;height:100vh}
+.logo{padding:0 20px 24px;border-bottom:1px solid var(--border);margin-bottom:16px}
+.logo h1{font-size:20px;font-weight:800;color:var(--gold)}
+.logo p{font-size:11px;color:var(--muted);margin-top:2px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;transition:all 0.15s;color:var(--muted);font-size:14px;font-weight:500;border-left:3px solid transparent}
+.nav-item:hover{background:rgba(245,200,66,0.05);color:var(--text)}
+.nav-item.active{background:rgba(245,200,66,0.08);color:var(--gold);border-left-color:var(--gold)}
+.nav-item .icon{font-size:18px;width:24px;text-align:center}
+.sidebar-bottom{margin-top:auto;padding:16px 20px;border-top:1px solid var(--border)}
+.admin-avatar{width:36px;height:36px;border-radius:50%;background:linear-gradient(135deg,#2E4A7A,#1A2D4E);display:inline-flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;color:var(--gold)}
+.main{margin-left:240px;flex:1;padding:28px}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:28px}
+.page-title{font-size:24px;font-weight:800}
+.page-title span{color:var(--gold)}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:28px}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px}
+.stat-label{font-size:12px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px}
+.stat-value{font-size:28px;font-weight:800}
+.stat-change{font-size:12px;margin-top:6px}
+.stat-change.up{color:var(--green)}
+.card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;margin-bottom:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.card-title{font-size:15px;font-weight:700}
+.table{width:100%;border-collapse:collapse}
+.table th{text-align:left;padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);border-bottom:1px solid var(--border)}
+.table td{padding:12px;font-size:13px;border-bottom:1px solid rgba(30,45,66,.5)}
+.table tr:hover td{background:rgba(245,200,66,.03)}
+.table tr:last-child td{border-bottom:none}
+.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700}
+.badge-green{background:rgba(34,197,94,.15);color:var(--green)}
+.badge-red{background:rgba(239,68,68,.15);color:var(--red)}
+.badge-gold{background:rgba(245,200,66,.15);color:var(--gold)}
+.badge-blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.badge-gray{background:rgba(107,127,163,.15);color:var(--muted)}
+.btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;font-family:inherit}
+.btn-gold{background:linear-gradient(135deg,var(--gold),var(--gold-dim));color:#000}
+.btn-gold:hover{opacity:.9;transform:translateY(-1px)}
+.btn-outline{background:transparent;border:1px solid var(--border);color:var(--text-dim)}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+.btn-red{background:rgba(239,68,68,.15);color:var(--red);border:1px solid rgba(239,68,68,.2)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group.full{grid-column:1/-1}
+.form-label{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.form-input,.form-select{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:10px 14px;font-size:13px;color:var(--text);font-family:inherit;outline:none;transition:border-color .15s}
+.form-input:focus{border-color:var(--gold)}
+textarea.form-input{resize:vertical;min-height:80px}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center}
+.modal-overlay.open{display:flex}
+.modal{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:28px;width:600px;max-height:85vh;overflow-y:auto}
+.modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.modal-title{font-size:18px;font-weight:800}
+.modal-close{background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer}
+.modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px}
+.progress{background:var(--border);border-radius:4px;height:6px;overflow:hidden}
+.progress-fill{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--gold),var(--gold-dim))}
+.progress-fill.red{background:linear-gradient(90deg,var(--red),#dc2626)}
+.toast{position:fixed;top:20px;right:20px;background:var(--card);border:1px solid var(--green);color:var(--green);padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;transform:translateX(300px);transition:transform .3s}
+.toast.show{transform:translateX(0)}
+.search-input{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 14px;font-size:13px;color:var(--text);font-family:inherit;outline:none;width:220px}
+.search-input:focus{border-color:var(--gold)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.chart-bar{display:flex;align-items:flex-end;gap:6px;height:120px;padding:0 4px}
+.bar{flex:1;background:linear-gradient(to top,var(--gold),var(--gold-dim));border-radius:4px 4px 0 0;opacity:.8;transition:opacity .2s}
+.bar:hover{opacity:1}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:var(--surface)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.login-page{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg);width:100%}
+.login-card{background:var(--card);border:1px solid var(--border);border-radius:20px;padding:40px;width:380px}
+.login-logo{text-align:center;margin-bottom:32px}
+.login-logo h1{font-size:28px;font-weight:800;color:var(--gold)}
+.login-logo p{color:var(--muted);font-size:13px;margin-top:4px}
+</style>
+</head>
+<body>
+<div id="loginPage" class="login-page">
+  <div class="login-card">
+    <div class="login-logo"><h1>🎯 LuckyRupee</h1><p>Admin Dashboard</p></div>
+    <div class="form-group" style="margin-bottom:16px">
+      <label class="form-label">Username</label>
+      <input class="form-input" id="loginUser" value="admin">
+    </div>
+    <div class="form-group" style="margin-bottom:24px">
+      <label class="form-label">Password</label>
+      <input class="form-input" type="password" id="loginPass" value="admin123">
+    </div>
+    <button class="btn btn-gold" style="width:100%;justify-content:center;padding:12px" onclick="doLogin()">Login to Dashboard</button>
+    <p style="text-align:center;font-size:11px;color:var(--muted);margin-top:16px">Default: admin / admin123</p>
+  </div>
+</div>
+
+<div id="dashboard" style="display:none;width:100%;display:none">
+<div class="sidebar">
+  <div class="logo"><h1>🎯 LuckyRupee</h1><p>Admin Panel v1.0</p></div>
+  <nav>
+    <div class="nav-item active" onclick="showPage('overview')" id="nav-overview"><span class="icon">📊</span> Overview</div>
+    <div class="nav-item" onclick="showPage('draws')" id="nav-draws"><span class="icon">🎯</span> Draws</div>
+    <div class="nav-item" onclick="showPage('users')" id="nav-users"><span class="icon">👥</span> Users</div>
+    <div class="nav-item" onclick="showPage('transactions')" id="nav-transactions"><span class="icon">💰</span> Transactions</div>
+    <div class="nav-item" onclick="showPage('winners')" id="nav-winners"><span class="icon">🏆</span> Winners</div>
+    <div class="nav-item" onclick="showPage('settings')" id="nav-settings"><span class="icon">⚙️</span> Settings</div>
+  </nav>
+  <div class="sidebar-bottom">
+    <div style="display:flex;align-items:center;gap:10px">
+      <div class="admin-avatar">A</div>
+      <div><div style="font-size:13px;font-weight:600">Admin</div><div style="font-size:11px;color:var(--muted)">Super Admin</div></div>
+    </div>
+  </div>
+</div>
+
+<div class="main">
+<!-- OVERVIEW -->
+<div class="page active" id="page-overview">
+  <div class="page-header">
+    <div class="page-title">Dashboard <span>Overview</span></div>
+    <div style="display:flex;gap:10px;align-items:center">
+      <span style="font-size:12px;color:var(--muted)" id="lastUpdated"></span>
+      <button class="btn btn-outline btn-sm" onclick="loadAll()">🔄 Refresh</button>
+    </div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-card"><div style="font-size:28px;margin-bottom:8px">👥</div><div class="stat-label">Total Users</div><div class="stat-value" id="stat-users">—</div><div class="stat-change up" id="stat-users-ch">Loading...</div></div>
+    <div class="stat-card"><div style="font-size:28px;margin-bottom:8px">🎯</div><div class="stat-label">Active Draws</div><div class="stat-value" id="stat-draws">—</div><div class="stat-change up" id="stat-draws-ch">Loading...</div></div>
+    <div class="stat-card"><div style="font-size:28px;margin-bottom:8px">💰</div><div class="stat-label">Total Revenue</div><div class="stat-value" id="stat-rev">—</div><div class="stat-change up">From entries</div></div>
+    <div class="stat-card"><div style="font-size:28px;margin-bottom:8px">🏆</div><div class="stat-label">Winners Paid</div><div class="stat-value" id="stat-win">—</div><div class="stat-change up">All time</div></div>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><div class="card-title">📈 Revenue (7 Days)</div></div>
+      <div class="chart-bar" id="revChart">
+        <div class="bar" style="height:30%"></div><div class="bar" style="height:55%"></div>
+        <div class="bar" style="height:40%"></div><div class="bar" style="height:75%"></div>
+        <div class="bar" style="height:50%"></div><div class="bar" style="height:88%"></div>
+        <div class="bar" style="height:65%"></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;margin-top:8px">
+        <span style="font-size:11px;color:var(--muted)">Mon</span><span style="font-size:11px;color:var(--muted)">Tue</span>
+        <span style="font-size:11px;color:var(--muted)">Wed</span><span style="font-size:11px;color:var(--muted)">Thu</span>
+        <span style="font-size:11px;color:var(--muted)">Fri</span><span style="font-size:11px;color:var(--muted)">Sat</span>
+        <span style="font-size:11px;color:var(--muted)">Sun</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">🎯 Draws Fill Status</div></div>
+      <div id="drawsStatus"><div style="text-align:center;color:var(--muted);padding:20px">Loading...</div></div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-header"><div class="card-title">🕐 Recent Transactions</div></div>
+    <table class="table"><thead><tr><th>Time</th><th>Type</th><th>User</th><th>Amount</th><th>Status</th></tr></thead>
+    <tbody id="recentTxns"><tr><td colspan="5" style="text-align:center;color:var(--muted)">Loading...</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- DRAWS -->
+<div class="page" id="page-draws">
+  <div class="page-header">
+    <div class="page-title">🎯 Manage <span>Draws</span></div>
+    <button class="btn btn-gold" onclick="openDrawModal()">+ Create Draw</button>
+  </div>
+  <div class="card">
+    <div class="card-header">
+      <div style="display:flex;gap:10px">
+        <input class="search-input" placeholder="Search draws..." oninput="filterDraws(this.value)">
+        <select class="form-select" style="width:140px" onchange="filterDrawsByStatus(this.value)">
+          <option value="">All Status</option><option value="active">Active</option>
+          <option value="completed">Completed</option><option value="cancelled">Cancelled</option>
+        </select>
+      </div>
+      <button class="btn btn-outline btn-sm" onclick="loadDraws()">🔄</button>
+    </div>
+    <table class="table"><thead><tr><th>Prize</th><th>Category</th><th>Price</th><th>Entries</th><th>Fill</th><th>End Time</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="drawsTable"><tr><td colspan="8" style="text-align:center;color:var(--muted)">Loading...</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- USERS -->
+<div class="page" id="page-users">
+  <div class="page-header">
+    <div class="page-title">👥 Manage <span>Users</span></div>
+    <input class="search-input" placeholder="Search users..." oninput="filterUsers(this.value)">
+  </div>
+  <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-value" id="uCount">0</div></div>
+    <div class="stat-card"><div class="stat-label">Verified</div><div class="stat-value" id="uVerified" style="color:var(--green)">0</div></div>
+    <div class="stat-card"><div class="stat-label">Total Wallet</div><div class="stat-value" id="uWallet">PKR 0</div></div>
+  </div>
+  <div class="card">
+    <table class="table"><thead><tr><th>ID</th><th>Phone</th><th>Name</th><th>Balance</th><th>Joined</th><th>Status</th><th>Actions</th></tr></thead>
+    <tbody id="usersTable"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Loading...</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- TRANSACTIONS -->
+<div class="page" id="page-transactions">
+  <div class="page-header">
+    <div class="page-title">💰 <span>Transactions</span></div>
+    <select class="form-select" style="width:160px" onchange="filterTxns(this.value)">
+      <option value="">All Types</option><option value="deposit">Deposits</option>
+      <option value="entry_fee">Entry Fees</option><option value="prize_payout">Payouts</option>
+    </select>
+  </div>
+  <div class="stats-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card"><div class="stat-label">Total Deposits</div><div class="stat-value" id="tDep" style="color:var(--green)">PKR 0</div></div>
+    <div class="stat-card"><div class="stat-label">Entry Revenue</div><div class="stat-value" id="tEnt" style="color:var(--gold)">PKR 0</div></div>
+    <div class="stat-card"><div class="stat-label">Total Payouts</div><div class="stat-value" id="tPay" style="color:var(--red)">PKR 0</div></div>
+  </div>
+  <div class="card">
+    <table class="table"><thead><tr><th>ID</th><th>User</th><th>Type</th><th>Amount</th><th>Description</th><th>Date</th><th>Status</th></tr></thead>
+    <tbody id="txnsTable"><tr><td colspan="7" style="text-align:center;color:var(--muted)">Loading...</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- WINNERS -->
+<div class="page" id="page-winners">
+  <div class="page-header"><div class="page-title">🏆 <span>Winners</span></div></div>
+  <div class="card">
+    <table class="table"><thead><tr><th>Draw</th><th>Prize Value</th><th>Winner Phone</th><th>Entry #</th><th>Date</th><th>Paid</th></tr></thead>
+    <tbody id="winnersTable"><tr><td colspan="6" style="text-align:center;color:var(--muted);padding:30px">No completed draws yet</td></tr></tbody></table>
+  </div>
+</div>
+
+<!-- SETTINGS -->
+<div class="page" id="page-settings">
+  <div class="page-header">
+    <div class="page-title">⚙️ <span>Settings</span></div>
+    <button class="btn btn-gold" onclick="showToast('✅ Settings saved')">💾 Save</button>
+  </div>
+  <div class="two-col">
+    <div class="card">
+      <div class="card-header"><div class="card-title">🔧 App Config</div></div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group"><label class="form-label">App Name</label><input class="form-input" value="LuckyRupee"></div>
+        <div class="form-group"><label class="form-label">Backend URL</label><input class="form-input" value="https://luckyrupee-production.up.railway.app"></div>
+        <div class="form-group"><label class="form-label">SMS API URL</label><input class="form-input" id="smsUrl" placeholder="https://sms.provider.com/send"></div>
+        <div class="form-group"><label class="form-label">SMS API Key</label><input class="form-input" type="password" id="smsKey"></div>
+        <div class="form-group"><label class="form-label">Min Deposit (PKR)</label><input class="form-input" value="10" type="number"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><div class="card-title">💳 JazzCash Config</div></div>
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="form-group"><label class="form-label">Merchant ID</label><input class="form-input" placeholder="MC12345"></div>
+        <div class="form-group"><label class="form-label">Password</label><input class="form-input" type="password"></div>
+        <div class="form-group"><label class="form-label">Integrity Salt</label><input class="form-input" type="password"></div>
+        <div class="form-group"><label class="form-label">Mode</label>
+          <select class="form-select"><option>Sandbox (Testing)</option><option>Production (Live)</option></select>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<!-- DRAW MODAL -->
+<div class="modal-overlay" id="drawModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="drawModalTitle">➕ Create Draw</div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full"><label class="form-label">Prize Name *</label><input class="form-input" id="d-name" placeholder="e.g. Honda CB150F 2025"></div>
+      <div class="form-group full"><label class="form-label">Description</label><textarea class="form-input" id="d-desc" placeholder="Prize details..."></textarea></div>
+      <div class="form-group full"><label class="form-label">Image URL</label><input class="form-input" id="d-img" placeholder="https://images.unsplash.com/..."></div>
+      <div class="form-group"><label class="form-label">Prize Value (PKR) *</label><input class="form-input" type="number" id="d-value" placeholder="285000"></div>
+      <div class="form-group"><label class="form-label">Entry Price (PKR) *</label><input class="form-input" type="number" id="d-price" placeholder="10"></div>
+      <div class="form-group"><label class="form-label">Max Entries *</label><input class="form-input" type="number" id="d-max" placeholder="500"></div>
+      <div class="form-group"><label class="form-label">Max Per User</label><input class="form-input" type="number" id="d-maxu" value="50"></div>
+      <div class="form-group"><label class="form-label">Category</label>
+        <select class="form-select" id="d-cat"><option value="bike">🏍️ Bike</option><option value="phone">📱 Phone</option><option value="watch">⌚ Watch</option><option value="gadget">💻 Gadget</option><option value="cash">💵 Cash</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Prize Type</label>
+        <select class="form-select" id="d-type"><option value="physical">Physical</option><option value="cash">Cash</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">End Date & Time *</label><input class="form-input" type="datetime-local" id="d-end"></div>
+      <div class="form-group"><label class="form-label">Featured?</label>
+        <select class="form-select" id="d-feat"><option value="false">No</option><option value="true">Yes — Show on Top</option></select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-gold" onclick="saveDraw()">💾 Save Draw</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API='https://luckyrupee-production.up.railway.app';
+let token=localStorage.getItem('admin_token')||'';
+let allDraws=[],allUsers=[],allTxns=[],editId=null;
+
+function doLogin(){
+  if(document.getElementById('loginUser').value==='admin'&&document.getElementById('loginPass').value==='admin123'){
+    token='admin_token'; localStorage.setItem('admin_token',token);
+    document.getElementById('loginPage').style.display='none';
+    document.getElementById('dashboard').style.display='flex';
+    loadAll();
+  } else showToast('❌ Wrong credentials','red');
+}
+
+if(token){
+  document.getElementById('loginPage').style.display='none';
+  document.getElementById('dashboard').style.display='flex';
+  loadAll();
+}
+
+function showPage(n){
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+n).classList.add('active');
+  document.getElementById('nav-'+n).classList.add('active');
+  if(n==='draws')loadDraws();
+  if(n==='users')loadUsers();
+  if(n==='transactions')loadTxns();
+}
+
+async function get(ep){
+  try{const r=await fetch(API+ep,{headers:{'Authorization':'Bearer '+token}});return await r.json();}catch{return null;}
+}
+async function post(ep,body,method='POST'){
+  try{const r=await fetch(API+ep,{method,headers:{'Authorization':'Bearer '+token,'Content-Type':'application/json'},body:JSON.stringify(body)});return await r.json();}catch{return null;}
+}
+
+async function loadAll(){
+  document.getElementById('lastUpdated').textContent='Updated: '+new Date().toLocaleTimeString();
+  const stats=await get('/api/admin/stats');
+  if(stats&&!stats.error){
+    document.getElementById('stat-users').textContent=stats.totalUsers||0;
+    document.getElementById('stat-draws').textContent=stats.activeDraws||0;
+    document.getElementById('stat-rev').textContent='PKR '+(stats.totalRevenue||0).toLocaleString();
+    document.getElementById('stat-win').textContent=stats.totalWinners||0;
+    document.getElementById('stat-users-ch').textContent='↑ Total registered';
+    document.getElementById('stat-draws-ch').textContent='↑ Currently running';
+    document.getElementById('uCount').textContent=stats.totalUsers||0;
+    document.getElementById('uVerified').textContent=stats.verifiedUsers||0;
+    document.getElementById('uWallet').textContent='PKR '+(stats.totalWalletBalance||0).toLocaleString();
+  } else {
+    ['stat-users','stat-draws','stat-rev','stat-win'].forEach(id=>document.getElementById(id).textContent='0');
+    document.getElementById('stat-users-ch').innerHTML='<span style="color:var(--red)">⚠️ API connecting...</span>';
+  }
+  const draws=await get('/api/draws');
+  const ds=draws?.draws||[];
+  const cont=document.getElementById('drawsStatus');
+  if(!ds.length){cont.innerHTML='<div style="text-align:center;color:var(--muted);padding:20px">No draws yet</div>';}
+  else cont.innerHTML=ds.slice(0,4).map(d=>{const p=Math.round((d.entries_sold||0)/d.max_entries*100);return`<div><div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:13px;font-weight:600">${d.prize_name}</span><span style="font-size:12px;color:var(--muted)">${d.entries_sold||0}/${d.max_entries}</span></div><div class="progress"><div class="progress-fill ${p>80?'red':''}" style="width:${p}%"></div></div></div>`;}).join('');
+
+  const txns=await get('/api/admin/transactions?limit=8');
+  const tbody=document.getElementById('recentTxns');
+  const ts=txns?.transactions||[];
+  if(!ts.length){tbody.innerHTML='<tr><td colspan="5" style="text-align:center;color:var(--muted)">No transactions yet</td></tr>';}
+  else tbody.innerHTML=ts.map(t=>`<tr><td style="color:var(--muted);font-size:11px">${new Date(t.created_at).toLocaleTimeString()}</td><td><span class="badge ${t.type==='deposit'?'badge-green':'badge-blue'}">${t.type}</span></td><td style="font-size:12px">${t.phone||t.user_id||'-'}</td><td style="color:${t.amount>0?'var(--green)':'var(--red)'};font-weight:700">${t.amount>0?'+':''}PKR ${Math.abs(t.amount)}</td><td><span class="badge badge-green">${t.status||'completed'}</span></td></tr>`).join('');
+}
+
+async function loadDraws(){
+  const data=await get('/api/draws');
+  allDraws=data?.draws||[];
+  renderDraws(allDraws);
+}
+
+function renderDraws(draws){
+  const tbody=document.getElementById('drawsTable');
+  if(!draws.length){tbody.innerHTML='<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:30px">No draws yet. Create your first draw! 🎯</td></tr>';return;}
+  tbody.innerHTML=draws.map(d=>{
+    const pct=Math.round((d.entries_sold||0)/d.max_entries*100);
+    const end=new Date(d.end_time);
+    const exp=end<new Date();
+    return`<tr>
+      <td><div style="font-weight:600">${d.prize_name}</div><div style="font-size:11px;color:var(--muted)">PKR ${Number(d.prize_value).toLocaleString()}</div></td>
+      <td><span class="badge badge-blue">${d.category||'—'}</span></td>
+      <td style="font-weight:700;color:var(--gold)">PKR ${d.entry_price}</td>
+      <td>${d.entries_sold||0}/${d.max_entries}</td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="progress" style="flex:1;min-width:50px"><div class="progress-fill ${pct>80?'red':''}" style="width:${pct}%"></div></div><span style="font-size:11px;color:var(--muted)">${pct}%</span></div></td>
+      <td style="font-size:12px;color:${exp?'var(--red)':'var(--muted)'};">${end.toLocaleDateString()} ${end.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}</td>
+      <td><span class="badge ${d.status==='active'?'badge-green':d.status==='completed'?'badge-gold':'badge-red'}">${d.status||'active'}</span></td>
+      <td><div style="display:flex;gap:4px">
+        <button class="btn btn-outline btn-sm" onclick="editDraw(${d.id})">✏️</button>
+        <button class="btn btn-red btn-sm" onclick="delDraw(${d.id})">🗑️</button>
+        ${pct>=100&&d.status==='active'?`<button class="btn btn-gold btn-sm" onclick="trigDraw(${d.id})">🎯</button>`:''}
+      </div></td>
+    </tr>`;
+  }).join('');
+}
+
+function filterDraws(q){renderDraws(allDraws.filter(d=>d.prize_name.toLowerCase().includes(q.toLowerCase())));}
+function filterDrawsByStatus(s){renderDraws(s?allDraws.filter(d=>d.status===s):allDraws);}
+
+async function loadUsers(){
+  const data=await get('/api/admin/users');
+  allUsers=data?.users||[];
+  document.getElementById('uCount').textContent=allUsers.length;
+  document.getElementById('uVerified').textContent=allUsers.filter(u=>u.is_verified).length;
+  const wallet=allUsers.reduce((s,u)=>s+Number(u.wallet_balance||0),0);
+  document.getElementById('uWallet').textContent='PKR '+wallet.toFixed(0);
+  renderUsers(allUsers);
+}
+function renderUsers(users){
+  const tbody=document.getElementById('usersTable');
+  if(!users.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">No users yet</td></tr>';return;}
+  tbody.innerHTML=users.map(u=>`<tr>
+    <td style="font-size:12px;color:var(--muted)">#${u.id}</td>
+    <td style="font-family:'JetBrains Mono';font-size:12px">${u.phone}</td>
+    <td>${u.name||'—'}</td>
+    <td style="color:var(--gold);font-weight:700">PKR ${Number(u.wallet_balance||0).toFixed(2)}</td>
+    <td style="font-size:12px;color:var(--muted)">${new Date(u.created_at).toLocaleDateString()}</td>
+    <td><span class="badge ${u.is_verified?'badge-green':'badge-gray'}">${u.is_verified?'Verified':'Unverified'}</span></td>
+    <td><div style="display:flex;gap:4px">
+      <button class="btn btn-outline btn-sm" onclick="viewUser(${u.id})">👁️</button>
+      <button class="btn btn-red btn-sm" onclick="banUser(${u.id})">🚫</button>
+    </div></td>
+  </tr>`).join('');
+}
+function filterUsers(q){renderUsers(allUsers.filter(u=>u.phone.includes(q)||(u.name||'').toLowerCase().includes(q.toLowerCase())));}
+
+async function loadTxns(){
+  const data=await get('/api/admin/transactions?limit=100');
+  allTxns=data?.transactions||[];
+  const dep=allTxns.filter(t=>t.type==='deposit').reduce((s,t)=>s+Number(t.amount),0);
+  const ent=allTxns.filter(t=>t.type==='entry_fee').reduce((s,t)=>s+Math.abs(Number(t.amount)),0);
+  const pay=allTxns.filter(t=>t.type==='prize_payout').reduce((s,t)=>s+Math.abs(Number(t.amount)),0);
+  document.getElementById('tDep').textContent='PKR '+dep.toFixed(0);
+  document.getElementById('tEnt').textContent='PKR '+ent.toFixed(0);
+  document.getElementById('tPay').textContent='PKR '+pay.toFixed(0);
+  renderTxns(allTxns);
+}
+function renderTxns(txns){
+  const tbody=document.getElementById('txnsTable');
+  if(!txns.length){tbody.innerHTML='<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">No transactions yet</td></tr>';return;}
+  tbody.innerHTML=txns.map(t=>`<tr>
+    <td style="font-size:11px;color:var(--muted)">#${t.id}</td>
+    <td style="font-size:12px">${t.phone||t.user_id||'—'}</td>
+    <td><span class="badge ${t.type==='deposit'?'badge-green':t.type==='prize_payout'?'badge-gold':'badge-blue'}">${t.type}</span></td>
+    <td style="font-weight:700;color:${t.amount>0?'var(--green)':'var(--red)'}">${t.amount>0?'+':''}PKR ${Math.abs(t.amount)}</td>
+    <td style="font-size:12px;color:var(--muted)">${t.description||'—'}</td>
+    <td style="font-size:12px;color:var(--muted)">${new Date(t.created_at).toLocaleString()}</td>
+    <td><span class="badge badge-green">${t.status}</span></td>
+  </tr>`).join('');
+}
+function filterTxns(type){renderTxns(type?allTxns.filter(t=>t.type===type):allTxns);}
+
+function openDrawModal(draw=null){
+  editId=draw?draw.id:null;
+  document.getElementById('drawModalTitle').textContent=draw?'✏️ Edit Draw':'➕ Create Draw';
+  if(draw){
+    document.getElementById('d-name').value=draw.prize_name||'';
+    document.getElementById('d-desc').value=draw.prize_description||'';
+    document.getElementById('d-img').value=draw.prize_image_url||'';
+    document.getElementById('d-value').value=draw.prize_value||'';
+    document.getElementById('d-price').value=draw.entry_price||'';
+    document.getElementById('d-max').value=draw.max_entries||'';
+    document.getElementById('d-maxu').value=draw.max_per_user||50;
+    document.getElementById('d-cat').value=draw.category||'bike';
+    document.getElementById('d-type').value=draw.prize_type||'physical';
+    document.getElementById('d-feat').value=String(draw.is_featured||false);
+    const end=new Date(draw.end_time);
+    document.getElementById('d-end').value=end.toISOString().slice(0,16);
+  } else {
+    ['d-name','d-desc','d-img','d-value','d-price','d-max'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('d-maxu').value='50';
+    document.getElementById('d-cat').value='bike';
+    document.getElementById('d-type').value='physical';
+    document.getElementById('d-feat').value='false';
+    const d=new Date();d.setDate(d.getDate()+7);
+    document.getElementById('d-end').value=d.toISOString().slice(0,16);
+  }
+  document.getElementById('drawModal').classList.add('open');
+}
+function closeModal(){document.getElementById('drawModal').classList.remove('open');}
+function editDraw(id){const d=allDraws.find(x=>x.id===id);if(d)openDrawModal(d);}
+
+async function saveDraw(){
+  const body={
+    prizeName:document.getElementById('d-name').value,
+    prizeDescription:document.getElementById('d-desc').value,
+    prizeImageUrl:document.getElementById('d-img').value,
+    prizeValue:Number(document.getElementById('d-value').value),
+    entryPrice:Number(document.getElementById('d-price').value),
+    maxEntries:Number(document.getElementById('d-max').value),
+    maxPerUser:Number(document.getElementById('d-maxu').value),
+    category:document.getElementById('d-cat').value,
+    prizeType:document.getElementById('d-type').value,
+    isFeatured:document.getElementById('d-feat').value==='true',
+    endTime:document.getElementById('d-end').value,
+  };
+  if(!body.prizeName||!body.prizeValue||!body.entryPrice||!body.maxEntries){showToast('❌ Fill all required fields','red');return;}
+  const ep=editId?`/api/admin/draws/${editId}`:'/api/admin/draws';
+  const method=editId?'PUT':'POST';
+  const data=await post(ep,body,method);
+  if(data?.error){showToast('❌ '+data.error,'red');return;}
+  showToast('✅ Draw saved!');
+  closeModal();loadDraws();
+}
+
+async function delDraw(id){
+  if(!confirm('Delete this draw?'))return;
+  await fetch(API+`/api/admin/draws/${id}`,{method:'DELETE',headers:{'Authorization':'Bearer '+token}});
+  showToast('✅ Draw deleted');loadDraws();
+}
+
+async function trigDraw(id){
+  if(!confirm('Trigger draw? A winner will be selected!'))return;
+  const data=await post(`/api/admin/draws/${id}/trigger`,{});
+  if(data?.winner){showToast(`🎉 Winner: ${data.winner.phone}!`);loadDraws();}
+  else showToast('❌ '+(data?.error||'Error'),'red');
+}
+
+function viewUser(id){const u=allUsers.find(x=>x.id===id);if(u)alert(`User #${u.id}\nPhone: ${u.phone}\nBalance: PKR ${u.wallet_balance}\nJoined: ${new Date(u.created_at).toLocaleDateString()}`);}
+function banUser(id){if(!confirm('Ban user #'+id+'?'))return;showToast('✅ User banned');}
+
+function showToast(msg,type='green'){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.style.borderColor=type==='red'?'var(--red)':'var(--green)';
+  t.style.color=type==='red'?'var(--red)':'var(--green)';
+  t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+document.getElementById('loginPass').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+</script>
+</body>
+</html>
